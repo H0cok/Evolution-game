@@ -1,5 +1,4 @@
 import math
-from widgets import Button, SliderButton
 from constants import *
 import pygame as pg
 from pygame.locals import *
@@ -129,6 +128,7 @@ class World:
         self.world_vars = world_vars
         self.screen = screen
         self.draw = Drawing(screen, families)
+        self.days_num = 0
         self.day = None
 
     def new_day(self):
@@ -158,6 +158,7 @@ class World:
                 guy.rect.center = guy.pos
             family.guys = new_family
         self.day = None
+        self.days_num -= 1
 
     def play_day(self, dt):
         for family in self.families:
@@ -242,14 +243,14 @@ class Game:
         self.screen.fill((220, 220, 220))
         pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(FIELD_POSITION), 2)
         pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(1150, 600, 180, 70))
-        if event and not self.world.day:
+        if event:
             for widget in widgets:
                 if widget.name == "Slider":
                     if not widget.buttons:
                         for family in self.world.families:
                             name = family.name
                             widget.add_button(Button(name, name, (1150, 500, 180, 70),
-                                                     (150, 150, 150), (170, 170, 170), (255, 255, 255), False,
+                                                     family.color, (170, 170, 170), (255, 255, 255), False,
                                                      False))
                     for button in widget.buttons:
                         if button.active and button.rect.collidepoint(pos):
@@ -259,7 +260,7 @@ class Game:
                             if event.type == pg.MOUSEBUTTONUP:
                                 button.pressed = False
 
-                    if event.button in {4, 5} and widget.field_rect.collidepoint(pos):
+                    if widget.field_rect.collidepoint(pos) and event.button in {4, 5}:
                         if event.button == 4:
                             move_sign = 1
                         else:
@@ -274,14 +275,35 @@ class Game:
                             self.new_world()
                         if widget.name == "New Day" and self.world:
                             widget.pressed = True
-                            self.world.new_day()
+                            self.world.days_num = 1
                         if widget.name == "Slider":
                             widget.pressed = not widget.pressed
                             widget.deactivate()
-                if event.type == pg.MOUSEBUTTONUP and widget.name != "Slider":
+                        if widget.name == "Day Input":
+                            widget.pressed = not widget.pressed
+
+                elif event.type == pg.MOUSEBUTTONUP and \
+                        widget.name in {"New World", "New Day"}:
                     widget.pressed = False
+
+                elif event.type == pg.KEYDOWN and \
+                        widget.pressed and isinstance(widget, TextInput):
+                    if event.key == pg.K_BACKSPACE:
+                        widget.text = widget.text[:-1]
+
+                    elif event.key == pg.K_RETURN and widget.text.isnumeric():
+
+                        widget.pressed = False
+                        self.world.days_num = int(widget.text)
+                    else:
+                        widget.text += event.unicode
+
         if self.world:
             self.world.draw.draw_stand()
+            if self.world.days_num > 0 and not self.world.day:
+                self.world.new_day()
+
+
         if self.world.day:
             self.world.draw.draw_food(self.world.day.food)
             self.world.play_day(dt)
@@ -291,6 +313,7 @@ class Game:
         if self.scene == "Game":
             self.screen_game(dt, widgets, pos, event)
         self.draw_widgets(widgets)
+
         pg.display.update()
 
     def draw_widgets(self, widgets):
@@ -317,13 +340,11 @@ class Game:
                     if slider.pressed:
                         pg.draw.rect(self.screen, slider.field_color, slider.field_rect)
                         for button in slider.buttons:
-                            if button.pos[1] >= slider.y + slider.y_diff and \
-                                    button.pos[1] + button.y_diff <= slider.field_coords[1] + slider.field_coords[3]:
+                            if button.pos[1] >= slider.pos[1] + slider.pos[3] and \
+                                    button.pos[1] + button.pos[3] <= slider.field_coords[1] + slider.field_coords[3]:
                                 button.active = True
-                                widgets.append(button)
                             else:
                                 button.active = False
-                            button = widget
                             if button.active:
                                 if button.pressed:
                                     pg.draw.rect(self.screen, button.color_pressed, button.rect)
@@ -333,6 +354,19 @@ class Game:
                                 text_rect = text_screen.get_rect()
                                 text_rect.center = button.rect.center
                                 self.screen.blit(text_screen, text_rect)
+            if isinstance(widget, TextInput):
+                if widget.active:
+                    pg.draw.rect(self.screen, widget.color, widget.rect)
+                    if widget.pressed:
+                        pg.draw.rect(self.screen, widget.color_pressed, widget.rect)
+                    if self.world.day:
+                        text = str(self.world.days_num)
+                    else:
+                        text = widget.text
+                    text_screen = FONT.render(text, True, widget.text_color)
+                    text_rect = text_screen.get_rect()
+                    text_rect.center = widget.rect.center
+                    self.screen.blit(text_screen, text_rect)
 
     def new_world(self):
         self.families = []
@@ -343,17 +377,18 @@ class Game:
     def run(self):
         running = True
         previous_time = time.time()
+
         while running:
             dt = (time.time() - previous_time)
             previous_time = time.time()
             for event in pg.event.get():
                 if event.type == QUIT:
                     running = False
-                if event.type in [pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL]:
-                    print(7)
+                if event.type in {pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL, pg.KEYDOWN}:
                     self.update(dt, pg.mouse.get_pos(), event)
                     break
             self.update(dt)
+
 
 
 if __name__ == '__main__':

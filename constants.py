@@ -1,7 +1,7 @@
 import pygame as pg
 import random
 import numpy
-from widgets import Button, SliderButton
+from widgets import Button, SliderButton, TextInput
 
 pg.init()
 DEFAULT_PARAMS_ALL = {"mutation_rate": 0.95,
@@ -53,8 +53,9 @@ WIDGETS_OBJECTS = {"Game": [Button("New World", "New World", (1150, 600, 180, 70
 
                             SliderButton("Slider", "Slider", (1150, 50, 180, 70),
                                          (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True,
-                                         [], (1150, 125, 180, 370), (150, 150, 150) )
-                            ]}
+                                         [], (1150, 125, 180, 370), (150, 150, 150) ),
+                            TextInput("Day Input", "", (1350, 500, 50, 70),
+                                   (200, 200, 200), (240, 240, 240), (0, 0, 0), False, True)]}
 
 
 class Field:
