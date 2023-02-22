@@ -1,5 +1,5 @@
 import math
-
+from widgets import Button, SliderButton
 from constants import *
 import pygame as pg
 from pygame.locals import *
@@ -75,9 +75,9 @@ class Family:
                  params_all=DEFAULT_PARAMS_ALL,
                  params_ch=DEFAULT_PARAMS_CH,
                  population=POPULATION,
-                 params_family=next(DEFAULT_FAMILY_PARAMS),
+                 params_family=next(DEFAULT_FAMILY_PARAMS)
                  ):
-
+        print(params_family)
         self.population = population
         self.name = params_family[0]
         self.color = params_family[1]
@@ -139,12 +139,9 @@ class World:
                 guy.params.params_all["satiety"] = 0
 
     def end_day(self):
-        f = 0
         for family in self.families:
-            f+=1
             new_family = []
             for num, guy in enumerate(family.guys):
-                print(f, guy.params.params_all)
                 eaten_food = guy.params.params_all["satiety"]
 
                 if eaten_food == 1:
@@ -229,79 +226,122 @@ class World:
                     guy.rect.center = guy.pos
 
 
-class Mouse:
-    def __init__(self, screen, button_pos=BUTTONS_POSITIONS):
-        self.screen = screen
-        self.button_pos = button_pos
-
-    def press(self, press_pos):
-        x_press, y_press = press_pos
-        for x, y, x_diff, y_diff in self.button_pos:
-            if not self.button_pos[(x, y, x_diff, y_diff)][2]:
-                continue
-            if x < x_press < x_diff + x and y < y_press < y_diff + y:
-                pg.draw.rect(self.screen, (200, 200, 200), pg.Rect(x, y, x_diff, y_diff))
-                pg.display.flip()
-                return self.button_pos[(x, y, x_diff, y_diff)]
-        return None
-
-
 class Game:
     def __init__(self):
         pg.init()
         pg.font.init()
         pg.display.set_caption("Evolution")
         self.screen = pg.display.set_mode((1420, 720))
-        self.draw_grid()
-        self.mouse = Mouse(screen=self.screen)
-        self.world = None
+        self.scene = "Game"
+        self.new_world()
 
-    def draw_grid(self):
+    def screen_settings(self):
+        pass
+
+    def screen_game(self, dt, widgets, pos, event):
         self.screen.fill((220, 220, 220))
         pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(FIELD_POSITION), 2)
         pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(1150, 600, 180, 70))
-        for pos in BUTTONS_POSITIONS:
-            text, color, active = BUTTONS_POSITIONS[pos]
-            if active:
-                rect = pg.Rect(pos)
-                pg.draw.rect(self.screen, color, rect)
-                text_screen = FONT.render(text, True, (255, 255, 255))
-                text_rect = text_screen.get_rect()
-                text_rect.center = rect.center
-                self.screen.blit(text_screen, text_rect)
+        if event and not self.world.day:
+            for widget in widgets:
+                if widget.name == "Slider":
+                    if not widget.buttons:
+                        for family in self.world.families:
+                            name = family.name
+                            widget.add_button(Button(name, name, (1150, 500, 180, 70),
+                                                     (150, 150, 150), (170, 170, 170), (255, 255, 255), False,
+                                                     False))
+                    for button in widget.buttons:
+                        if button.active and button.rect.collidepoint(pos):
+                            if event.button == 1:
+                                button.pressed = True
+                                self.screen_settings()
+                            if event.type == pg.MOUSEBUTTONUP:
+                                button.pressed = False
 
-    def draw_main_menu(self):
-        self.screen.fill((220, 220, 220))
-        pass
-
-
-    def update(self, dt):
-        self.draw_grid()
+                    if event.button in {4, 5} and widget.field_rect.collidepoint(pos):
+                        if event.button == 4:
+                            move_sign = 1
+                        else:
+                            move_sign = -1
+                        for button in widget.buttons:
+                            button.pos = (button.pos[0], button.pos[1] + 30 * move_sign, button.pos[2], button.pos[3])
+                            button.rect.update(button.pos)
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    if widget.rect.collidepoint(pos):
+                        if widget.name == "New World":
+                            widget.pressed = True
+                            self.new_world()
+                        if widget.name == "New Day" and self.world:
+                            widget.pressed = True
+                            self.world.new_day()
+                        if widget.name == "Slider":
+                            widget.pressed = not widget.pressed
+                            widget.deactivate()
+                if event.type == pg.MOUSEBUTTONUP and widget.name != "Slider":
+                    widget.pressed = False
         if self.world:
             self.world.draw.draw_stand()
-            if self.world.day:
-                self.world.draw.draw_food(self.world.day.food)
-                self.world.play_day(dt)
+        if self.world.day:
+            self.world.draw.draw_food(self.world.day.food)
+            self.world.play_day(dt)
+
+    def update(self, dt, pos=None, event=None):
+        widgets = WIDGETS_OBJECTS[self.scene]
+        if self.scene == "Game":
+            self.screen_game(dt, widgets, pos, event)
+        self.draw_widgets(widgets)
         pg.display.update()
 
-    def draw(self):
-        pass
+    def draw_widgets(self, widgets):
+        for widget in widgets:
+            if isinstance(widget, Button):
+                button = widget
+                if button.active:
+                    if button.pressed:
+                        pg.draw.rect(self.screen, button.color_pressed, button.rect)
+                    else:
+                        pg.draw.rect(self.screen, button.color, button.rect)
+                    text_screen = FONT.render(button.text, True, button.text_color)
+                    text_rect = text_screen.get_rect()
+                    text_rect.center = button.rect.center
+                    self.screen.blit(text_screen, text_rect)
+            if isinstance(widget, SliderButton):
+                slider = widget
+                if slider.active:
+                    pg.draw.rect(self.screen, slider.color, slider.rect)
+                    text_screen = FONT.render(slider.text, True, slider.text_color)
+                    text_rect = text_screen.get_rect()
+                    text_rect.center = slider.rect.center
+                    self.screen.blit(text_screen, text_rect)
+                    if slider.pressed:
+                        pg.draw.rect(self.screen, slider.field_color, slider.field_rect)
+                        for button in slider.buttons:
+                            if button.pos[1] >= slider.y + slider.y_diff and \
+                                    button.pos[1] + button.y_diff <= slider.field_coords[1] + slider.field_coords[3]:
+                                button.active = True
+                                widgets.append(button)
+                            else:
+                                button.active = False
+                            button = widget
+                            if button.active:
+                                if button.pressed:
+                                    pg.draw.rect(self.screen, button.color_pressed, button.rect)
+                                else:
+                                    pg.draw.rect(self.screen, button.color, button.rect)
+                                text_screen = FONT.render(button.text, True, button.text_color)
+                                text_rect = text_screen.get_rect()
+                                text_rect.center = button.rect.center
+                                self.screen.blit(text_screen, text_rect)
 
-    def new_world(self, dt):
+    def new_world(self):
         self.families = []
         for family_num in range(FAMILY_NUM):
-            self.families.append(Family())
+            self.families.append(Family(params_family=next(DEFAULT_FAMILY_PARAMS)))
         self.world = World(families=self.families, screen=self.screen)
-
-    def check_event(self, button, dt):
-        if button[0] == "New World":
-            self.new_world(dt)
-        if button[0] == "New Day":
-            self.world.new_day()
 
     def run(self):
         running = True
-        pause = False
         previous_time = time.time()
         while running:
             dt = (time.time() - previous_time)
@@ -309,13 +349,10 @@ class Game:
             for event in pg.event.get():
                 if event.type == QUIT:
                     running = False
-                if event.type == pg.MOUSEBUTTONDOWN:
-                    button = self.mouse.press(press_pos=pg.mouse.get_pos())
-                    if button and button[2]:
-                        self.check_event(button, dt)
-
-                if event.type == pg.MOUSEBUTTONUP:
-                    self.draw_grid()
+                if event.type in [pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL]:
+                    print(7)
+                    self.update(dt, pg.mouse.get_pos(), event)
+                    break
             self.update(dt)
 
 
