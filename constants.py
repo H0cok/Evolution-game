@@ -8,8 +8,10 @@ DEFAULT_PARAMS_ALL = {"mutation_rate": 0.95,
                       "mutation_importance": 1.5,
                       "size": 20,
                       "speed": 4.5,
-                      "reach": 40,
+                      "reach": 30,
                       "satiety": 0}
+
+UPDATE_AI_SPEED = 10
 
 DEFAULT_PARAMS_CH = {"size",
                      "speed",
@@ -38,7 +40,7 @@ DEFAULT_FAMILY_PARAMS = iter(FAMILY_NAMES_AND_COLORS)
 
 POPULATION = 1
 FIELD_POSITION = (110, 120, 900, 500)
-FAMILY_NUM = 15
+FAMILY_NUM = 10
 
 DEFAULT_WORLD_VARS = {"food_amount": 20,
                       "predator_size": 1.1}

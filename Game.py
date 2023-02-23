@@ -61,7 +61,9 @@ class Guy:
         self.rect = pg.Rect(100, 100, self.size, self.size)
         self.rect.center = self.pos
         self.params = params
+        self.goal = None
         self.direction = None
+        self.closest_prey = (None, float("+inf"))
 
     def set_size(self, size):
         self.size = size
@@ -112,6 +114,22 @@ class FoodItem:
         self.on_field = True
 
 
+class ShowFPS:
+    def __init__(self):
+        self.prev_time = time.time()
+        self.text_screen = FONT.render(str("fps"), True, (0, 0, 0))
+        self.text_rect = self.text_screen.get_rect()
+        self.text_rect.center = (20, 20)
+
+
+    def show_fps(self, screen, dt):
+        if time.time() - self.prev_time > 0.2 and dt != 0:
+            print(5)
+            self.prev_time = time.time()
+            self.text_screen = FONT.render(str(round(1 / dt)), True, (0, 0, 0))
+        screen.blit(self.text_screen, self.text_rect)
+
+
 class Day:
     def __init__(self, food_amount):
         self.food_amount = food_amount
@@ -129,6 +147,7 @@ class World:
         self.screen = screen
         self.draw = Drawing(screen, families)
         self.days_num = 0
+        self.update_ai_speed = UPDATE_AI_SPEED + 1
         self.day = None
 
     def new_day(self):
@@ -167,22 +186,26 @@ class World:
                     self.end_day()
                     return None
                 speed = guy.params.params_all["speed"]
+                if not guy.goal or guy.direction:
+                    closest_food = min(self.day.food,
+                                       key=lambda x: abs(guy.pos[0] - x.pos[0]) + abs(guy.pos[1] - x.pos[1]))
+                    guy.goal = closest_food
 
-                closest_food = min(self.day.food,
-                                   key=lambda x: abs(guy.pos[0] - x.pos[0]) + abs(guy.pos[1] - x.pos[1]))
-                closest_prey = (None, float("+inf"))
+                else:
+                    closest_food = guy.goal
                 closest_predator = (None, float("+inf"))
+                if self.update_ai_speed:
+                    for family_c in self.families:
+                        if family_c != family:
+                            for guy_c in family_c.guys:
+                                dist = (abs(guy.pos[0] - guy_c.pos[0]) + abs(guy_c.pos[1] - guy_c.pos[1]))
+                                if guy_c.size > guy.size * DEFAULT_WORLD_VARS["predator_size"] and \
+                                        dist < closest_predator[1]:
+                                    closest_predator = (guy_c, dist)
+                                elif guy.size > guy_c.size * DEFAULT_WORLD_VARS["predator_size"] and \
+                                        dist < guy.closest_prey[1]:
+                                    guy.closest_prey = (guy_c, dist)
 
-                for family_c in self.families:
-                    if family_c != family:
-                        for guy_c in family_c.guys:
-                            dist = (abs(guy.pos[0] - guy_c.pos[0]) + abs(guy_c.pos[1] - guy_c.pos[1]))
-                            if guy_c.size > guy.size * DEFAULT_WORLD_VARS["predator_size"] and \
-                                    dist < closest_predator[1]:
-                                closest_predator = (guy_c, dist)
-                            elif guy.size > guy_c.size * DEFAULT_WORLD_VARS["predator_size"] and \
-                                    dist < closest_prey[1]:
-                                closest_prey = (guy_c, dist)
 
                 if guy.rect.colliderect(closest_food.rect):
                     closest_food.on_field = False
@@ -191,32 +214,36 @@ class World:
                             self.day.food.pop(food_num)
                             self.day.food_amount -= 1
                             break
-
+                    guy.goal = None
                     guy.params.params_all["satiety"] += 1
 
-                elif closest_prey[0] and guy.rect.colliderect(closest_prey[0].rect):
+                elif guy.closest_prey[0] and guy.rect.colliderect(guy.closest_prey[0].rect):
                     for family_dead in self.families:
                         for idx, guy_dead in enumerate(family_dead.guys):
-                            if guy_dead is closest_prey[0]:
+                            if guy_dead is guy.closest_prey[0]:
                                 family_dead.guys.pop(idx)
-                                print("eaten")
                                 break
                         else:
                             continue
+                    print("eaten")
+                    guy.closest_prey = (None, float("+inf"))
                     guy.params.params_all["satiety"] += 1
 
                 else:
                     food_dist = abs(guy.pos[1] - closest_food.pos[1]) + abs(guy.pos[0] - closest_food.pos[0])
-                    if food_dist > closest_prey[1]:
-                        closest_food = closest_prey[0]
-                    food_dist = abs(guy.pos[1] - closest_food.pos[1]) + abs(guy.pos[0] - closest_food.pos[0])
+                    if food_dist > guy.closest_prey[1]:
+                        closest_food = guy.closest_prey[0]
+                        food_dist = abs(guy.pos[1] - closest_food.pos[1]) + abs(guy.pos[0] - closest_food.pos[0])
                     destination = closest_food.pos
                     if food_dist > guy.params.params_all["reach"]:
                         if not guy.direction or \
-                                (abs(guy.direction[0] - guy.pos[0]) < 1 and (abs(guy.direction[1] - guy.pos[1]) < 1)):
+                                (abs(guy.direction[0] - guy.pos[0]) < 7 and (abs(guy.direction[1] - guy.pos[1]) < 7)):
                             guy.direction = (random.randint(FIELD.x, FIELD.x + FIELD.x_diff),
                                              random.randint(FIELD.y, FIELD.y + FIELD.y_diff))
                         destination = guy.direction
+                    else:
+                        guy.direction = None
+
 
                     direction = abs(guy.pos[0] - destination[0]) / \
                                 (abs(guy.pos[1] - destination[1]) + abs(guy.pos[0] - destination[0]))
@@ -235,6 +262,8 @@ class Game:
         self.screen = pg.display.set_mode((1420, 720))
         self.scene = "Game"
         self.new_world()
+
+        self.fps = None
 
     def screen_settings(self):
         pass
@@ -303,17 +332,19 @@ class Game:
             if self.world.days_num > 0 and not self.world.day:
                 self.world.new_day()
 
-
         if self.world.day:
             self.world.draw.draw_food(self.world.day.food)
             self.world.play_day(dt)
 
     def update(self, dt, pos=None, event=None):
         widgets = WIDGETS_OBJECTS[self.scene]
+        self.world.update_ai_speed -= 1
         if self.scene == "Game":
             self.screen_game(dt, widgets, pos, event)
+        if self.world.update_ai_speed == 0:
+            self.world.update_ai_speed = UPDATE_AI_SPEED
         self.draw_widgets(widgets)
-
+        self.fps.show_fps(self.screen, dt)
         pg.display.update()
 
     def draw_widgets(self, widgets):
@@ -377,8 +408,9 @@ class Game:
     def run(self):
         running = True
         previous_time = time.time()
-
+        self.fps = ShowFPS()
         while running:
+
             dt = (time.time() - previous_time)
             previous_time = time.time()
             for event in pg.event.get():
@@ -388,6 +420,7 @@ class Game:
                     self.update(dt, pg.mouse.get_pos(), event)
                     break
             self.update(dt)
+
 
 
 
