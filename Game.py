@@ -67,7 +67,6 @@ class Guy:
         self.direction = None
         self.closest_prey = (None, float("+inf"))
 
-
     def set_size(self, size):
         self.size = size
         self.rect.update(100, 100, self.size, self.size)
@@ -97,6 +96,7 @@ class Family:
                              size=size,
                              params=params,
                              name=self.name + " " + str(next(self.guy_number))))
+
 
 class Drawing:
     def __init__(self, screen, families):
@@ -303,9 +303,9 @@ class World:
 
 
 class WorldSettings:
-    def __init__(self, screen, family_name, families):
+    def __init__(self, screen, family_name, family):
         self.family_name = family_name
-        self.families = families
+        self.family = family
         self.screen = screen
         self.draw()
 
@@ -326,7 +326,7 @@ class Game:
         self.world = None
         self.worlds = {world_name: None for world_name in WIDGETS_OBJECTS.keys()}
         self.new_world()
-
+        self.widgets = dict(WIDGETS_OBJECTS)
         self.fps = None
 
     def screen_game(self, dt, widgets, pos, event):
@@ -342,11 +342,15 @@ class Game:
                     for button in widget.buttons:
                         if button.active and button.rect.collidepoint(pos):
                             if event.button == 1:
-                                button.pressed = True
                                 self.scene = "World_settings"
-                                self.worlds["World_settings"] = WorldSettings(family_name=button.name,
-                                                                              families=self.world.families,
-                                                                              screen=self.screen)
+                                for family in self.world.families:
+                                    if family.name == button.name:
+                                        print(7)
+                                        self.worlds["World_settings"] = WorldSettings(family_name=button.name,
+                                                                                      family=family,
+                                                                                      screen=self.screen)
+                                        break
+
                                 self.world = self.worlds["World_settings"]
                                 return None
                     widget.scroll(pos, event)
@@ -388,27 +392,47 @@ class Game:
     def screen_world_settings(self, widgets, pos, event):
         if event:
             for widget in widgets:
+                if type(widget) == Button:
+                    print(5)
+                    if event.type == pg.MOUSEBUTTONDOWN and widget.rect.collidepoint(pos):
+
+                        widget.pressed = True
+                        if widget.name == "Exit":
+                            self.scene = "Game"
+                            self.world = self.worlds["Game"]
+                            self.widgets["World_settings"] = list(WIDGETS_OBJECTS["World_settings"])
+                            return None
+
                 if isinstance(widget, SliderButton):
                     if widget.scroll(pos, event):
                         return None
+                    if event.type == pg.MOUSEBUTTONDOWN and widget.rect.collidepoint(pos):
+                        widget.pressed = not widget.pressed
+                        if not widget.buttons:
+                            for guy in self.world.family.guys:
+                                widget.add_button(Button(guy.name, guy.name, (1150, 500, 180, 70),
+                                                         (200, 200, 200), (170, 170, 170), (255, 255, 255), False,
+                                                         False))
+
+                # elif event.type == pg.MOUSEBUTTONUP and widget.rect.collidepoint(pos):
+                #     widget.pressed = False
 
     def update(self, dt, pos=None, event=None):
-        widgets = WIDGETS_OBJECTS[self.scene]
+        widgets = self.widgets[self.scene]
         if self.scene == "Game":
             self.world.update_ai_speed -= 1
             self.screen_game(dt, widgets, pos, event)
             if self.scene == "Game":
                 if self.world.update_ai_speed == 0:
                     self.world.update_ai_speed = UPDATE_AI_SPEED
-        widgets = WIDGETS_OBJECTS[self.scene]
+        widgets = self.widgets[self.scene]
         if self.scene == "World_settings":
-            self.screen_world_settings(widgets,pos,event)
             self.world.draw()
+            self.screen_world_settings(widgets, pos, event)
 
         self.draw_widgets(widgets)
         self.fps.show_fps(self.screen, dt)
         pg.display.update()
-
 
     def draw_widgets(self, widgets):
         for widget in widgets:
