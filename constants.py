@@ -4,10 +4,14 @@ import numpy
 from widgets import Button, SliderButton, TextInput
 
 pg.init()
+DISPLAY_RES = (1420, 720)
+
+
+
 DEFAULT_PARAMS_ALL = {"mutation_rate": 0.95,
-                      "mutation_importance": 1.5,
+                      "mutation_importance": 2,
                       "size": 20,
-                      "speed": 4.5,
+                      "speed": 20.5,
                       "reach": 30,
                       "satiety": 0}
 
@@ -16,7 +20,7 @@ UPDATE_AI_SPEED = 10
 DEFAULT_PARAMS_CH = {"size",
                      "speed",
                      "reach",
-                     "mutationimportance"}
+                     }
 FAMILY_NAMES_AND_COLORS = [['green foxes', (23, 152, 161)], ['green wolfs', (110, 22, 167)],
                            ['green cats', (202, 228, 97)], ['green dogs', (99, 86, 224)],
                            ['green sharks', (189, 171, 192)], ['yellow foxes', (67, 187, 34)],
@@ -35,8 +39,8 @@ FAMILY_NAMES_AND_COLORS = [['green foxes', (23, 152, 161)], ['green wolfs', (110
                            ['white foxes', (132, 8, 176)], ['white wolfs', (177, 54, 248)],
                            ['white cats', (177, 72, 30)], ['white dogs', (48, 23, 3)],
                            ['white sharks', (106, 24, 125)]]
-random.shuffle(FAMILY_NAMES_AND_COLORS)
-DEFAULT_FAMILY_PARAMS = iter(FAMILY_NAMES_AND_COLORS)
+
+
 
 POPULATION = 1
 FIELD_POSITION = (110, 120, 900, 500)
@@ -46,23 +50,30 @@ DEFAULT_WORLD_VARS = {"food_amount": 20,
                       "predator_size": 1.1}
 
 FONT = pg.font.SysFont("calibri", 30)
+FONT_SMALL = pg.font.SysFont("calibri", 16)
+WIDGETS_OBJECTS = {"Game":
+                       [Button("New World", "New World", (1150, 600, 180, 70),
+                               (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
 
-WIDGETS_OBJECTS = {"Game": [Button("New World", "New World", (1150, 600, 180, 70),
-                                   (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
+                        Button("New Day", "New Day", (1150, 500, 180, 70),
+                               (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
 
-                            Button("New Day", "New Day", (1150, 500, 180, 70),
-                                   (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
+                        SliderButton("Slider", "Slider", (1150, 50, 180, 70),
+                                     (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True,
+                                     [], (1150, 125, 180, 370), (150, 150, 150)),
+                        TextInput("Day Input", "", (1350, 500, 50, 70),
+                                  (200, 200, 200), (240, 240, 240), (0, 0, 0), False, True)],
+                   "World_settings":
+                       [
 
-                            SliderButton("Slider", "Slider", (1150, 50, 180, 70),
-                                         (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True,
-                                         [], (1150, 125, 180, 370), (150, 150, 150) ),
-                            TextInput("Day Input", "", (1350, 500, 50, 70),
-                                   (200, 200, 200), (240, 240, 240), (0, 0, 0), False, True)]}
+                       ]
+
+                   }
 
 
 class Field:
     def __init__(self):
-        self.pos = (110, 120, 900, 500)
+        self.pos = FIELD_POSITION
         self.x = self.pos[0]
         self.y = self.pos[1]
         self.x_diff = self.pos[2]

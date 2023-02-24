@@ -1,4 +1,5 @@
 import math
+import numpy as np
 from constants import *
 import pygame as pg
 from pygame.locals import *
@@ -54,7 +55,8 @@ class Params:
 
 
 class Guy:
-    def __init__(self, size, color, params):
+    def __init__(self, size, color, params, name):
+        self.name = name
         self.pos = FIELD.get_pos_border()
         self.color = color
         self.size = size
@@ -65,6 +67,7 @@ class Guy:
         self.direction = None
         self.closest_prey = (None, float("+inf"))
 
+
     def set_size(self, size):
         self.size = size
         self.rect.update(100, 100, self.size, self.size)
@@ -73,37 +76,85 @@ class Guy:
 
 class Family:
     def __init__(self,
+                 params_family,
                  params_all=DEFAULT_PARAMS_ALL,
                  params_ch=DEFAULT_PARAMS_CH,
-                 population=POPULATION,
-                 params_family=next(DEFAULT_FAMILY_PARAMS)
+                 population=POPULATION
                  ):
-        print(params_family)
+        self.guy_number = iter(range(int(10e20)))
         self.population = population
         self.name = params_family[0]
         self.color = params_family[1]
         self.guys = [Guy(color=self.color,
                          size=DEFAULT_PARAMS_ALL["size"],
                          params=Params(params_all=dict(params_all),
-                                       params_ch=params_ch)) for _ in range(population)]
+                                       params_ch=params_ch
+                                       ),
+                         name=self.name + " " + str(next(self.guy_number))) for _ in range(population)]
 
+    def add_guy(self, size, params):
+        self.guys.append(Guy(color=self.color,
+                             size=size,
+                             params=params,
+                             name=self.name + " " + str(next(self.guy_number))))
 
 class Drawing:
     def __init__(self, screen, families):
         self.screen = screen
         self.families = families
+        self.info = []
 
     def draw_stand(self):
-
+        self.screen.fill((220, 220, 220))
+        pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(FIELD_POSITION), 2)
+        pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(1150, 600, 180, 70))
         for family in self.families:
             for guy in family.guys:
                 rect = guy.rect
                 pg.draw.circle(self.screen, guy.color, rect.center, guy.size / 2)
+        self.draw_info()
 
     def draw_food(self, food):
         for food_item in food:
             if food_item.on_field:
                 pg.draw.arc(self.screen, "red", food_item.rect, 0, 2 * pi)
+
+    def draw_info(self, update=False):
+        if update or not self.info:
+            self.info = []
+
+            self.families.sort(key=lambda x: len(x.guys), reverse=True)
+            params = {param: [] for param in DEFAULT_PARAMS_CH}
+            for guy in self.families[0].guys:
+                for param in DEFAULT_PARAMS_CH:
+                    params[param].append(guy.params.params_all[param])
+            for param in DEFAULT_PARAMS_CH:
+                value = np.round(np.mean(params[param]), 2)
+                percent = np.round(100 * value / DEFAULT_PARAMS_ALL[param] - 100, 2)
+                color = [255, 255, 255]
+                if percent > 0:
+                    # color[0] = color[2] = color[0] - color[0]*percent/100
+                    color = [0, 205, 0]
+                elif percent < 0:
+                    # color[1] = color[2] = color[1] + color[1]*percent/100
+                    color = [205, 0, 0]
+                self.info.append([str(value) + "  " + str(percent) + "% " + param, color])
+
+        for idx, row in enumerate(self.info):
+            text = row[0]
+            color = row[1]
+            text_screen = FONT_SMALL.render(text, True, color)
+            text_rect = text_screen.get_rect()
+
+            text_rect.topleft = (5, 630 + idx * text_rect.size[1])
+            self.screen.blit(text_screen, text_rect)
+
+    @staticmethod
+    def draw_text(screen, text, color, pos, font=FONT):
+        text_screen = font.render(text, True, color)
+        text_rect = text_screen.get_rect()
+        text_rect.topleft = pos
+        screen.blit(text_screen, text_rect)
 
 
 class FoodItem:
@@ -121,10 +172,8 @@ class ShowFPS:
         self.text_rect = self.text_screen.get_rect()
         self.text_rect.center = (20, 20)
 
-
     def show_fps(self, screen, dt):
         if time.time() - self.prev_time > 0.2 and dt != 0:
-            print(5)
             self.prev_time = time.time()
             self.text_screen = FONT.render(str(round(1 / dt)), True, (0, 0, 0))
         screen.blit(self.text_screen, self.text_rect)
@@ -169,7 +218,8 @@ class World:
                     new_family.append(guy)
                     new_guy = Guy(color=guy.color,
                                   size=guy.params.params_all["size"],
-                                  params=Params(params_all=dict(guy.params.params_all), mutation=True))
+                                  params=Params(params_all=dict(guy.params.params_all), mutation=True),
+                                  name=family.name + " " + str(next(family.guy_number)))
                     new_guy.set_size(new_guy.params.params_all["size"])
                     new_guy.pos = FIELD.get_pos_border()
                     new_family.append(new_guy)
@@ -205,7 +255,6 @@ class World:
                                 elif guy.size > guy_c.size * DEFAULT_WORLD_VARS["predator_size"] and \
                                         dist < guy.closest_prey[1]:
                                     guy.closest_prey = (guy_c, dist)
-
 
                 if guy.rect.colliderect(closest_food.rect):
                     closest_food.on_field = False
@@ -244,7 +293,6 @@ class World:
                     else:
                         guy.direction = None
 
-
                     direction = abs(guy.pos[0] - destination[0]) / \
                                 (abs(guy.pos[1] - destination[1]) + abs(guy.pos[0] - destination[0]))
 
@@ -254,24 +302,34 @@ class World:
                     guy.rect.center = guy.pos
 
 
+class WorldSettings:
+    def __init__(self, screen, family_name, families):
+        self.family_name = family_name
+        self.families = families
+        self.screen = screen
+        self.draw()
+
+    def draw(self):
+        pg.draw.rect(self.screen, (230, 230, 230, 100), Rect(0, 0, DISPLAY_RES[0], DISPLAY_RES[1]))
+        gap = 40
+        pg.draw.rect(self.screen, (200, 200, 200), Rect(gap, gap, DISPLAY_RES[0] - gap * 5, DISPLAY_RES[1] - gap * 2))
+        Drawing.draw_text(self.screen, self.family_name, (40, 40, 40), (gap + 5, gap + 5))
+
+
 class Game:
     def __init__(self):
         pg.init()
         pg.font.init()
         pg.display.set_caption("Evolution")
-        self.screen = pg.display.set_mode((1420, 720))
+        self.screen = pg.display.set_mode(DISPLAY_RES)
         self.scene = "Game"
+        self.world = None
+        self.worlds = {world_name: None for world_name in WIDGETS_OBJECTS.keys()}
         self.new_world()
 
         self.fps = None
 
-    def screen_settings(self):
-        pass
-
     def screen_game(self, dt, widgets, pos, event):
-        self.screen.fill((220, 220, 220))
-        pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(FIELD_POSITION), 2)
-        pg.draw.rect(self.screen, (150, 150, 150), pg.Rect(1150, 600, 180, 70))
         if event:
             for widget in widgets:
                 if widget.name == "Slider":
@@ -285,18 +343,13 @@ class Game:
                         if button.active and button.rect.collidepoint(pos):
                             if event.button == 1:
                                 button.pressed = True
-                                self.screen_settings()
-                            if event.type == pg.MOUSEBUTTONUP:
-                                button.pressed = False
-
-                    if widget.field_rect.collidepoint(pos) and event.button in {4, 5}:
-                        if event.button == 4:
-                            move_sign = 1
-                        else:
-                            move_sign = -1
-                        for button in widget.buttons:
-                            button.pos = (button.pos[0], button.pos[1] + 30 * move_sign, button.pos[2], button.pos[3])
-                            button.rect.update(button.pos)
+                                self.scene = "World_settings"
+                                self.worlds["World_settings"] = WorldSettings(family_name=button.name,
+                                                                              families=self.world.families,
+                                                                              screen=self.screen)
+                                self.world = self.worlds["World_settings"]
+                                return None
+                    widget.scroll(pos, event)
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if widget.rect.collidepoint(pos):
                         if widget.name == "New World":
@@ -317,35 +370,45 @@ class Game:
 
                 elif event.type == pg.KEYDOWN and \
                         widget.pressed and isinstance(widget, TextInput):
-                    if event.key == pg.K_BACKSPACE:
-                        widget.text = widget.text[:-1]
-
-                    elif event.key == pg.K_RETURN and widget.text.isnumeric():
-
-                        widget.pressed = False
+                    text = widget.change_text(event, True)
+                    if text:
                         self.world.days_num = int(widget.text)
-                    else:
-                        widget.text += event.unicode
 
         if self.world:
             self.world.draw.draw_stand()
-            if self.world.days_num > 0 and not self.world.day:
-                self.world.new_day()
+            if not self.world.day:
+                self.world.draw.draw_info(update=True)
+                if self.world.days_num > 0 and not self.world.day:
+                    self.world.new_day()
 
         if self.world.day:
             self.world.draw.draw_food(self.world.day.food)
             self.world.play_day(dt)
 
+    def screen_world_settings(self, widgets, pos, event):
+        if event:
+            for widget in widgets:
+                if isinstance(widget, SliderButton):
+                    if widget.scroll(pos, event):
+                        return None
+
     def update(self, dt, pos=None, event=None):
         widgets = WIDGETS_OBJECTS[self.scene]
-        self.world.update_ai_speed -= 1
         if self.scene == "Game":
+            self.world.update_ai_speed -= 1
             self.screen_game(dt, widgets, pos, event)
-        if self.world.update_ai_speed == 0:
-            self.world.update_ai_speed = UPDATE_AI_SPEED
+            if self.scene == "Game":
+                if self.world.update_ai_speed == 0:
+                    self.world.update_ai_speed = UPDATE_AI_SPEED
+        widgets = WIDGETS_OBJECTS[self.scene]
+        if self.scene == "World_settings":
+            self.screen_world_settings(widgets,pos,event)
+            self.world.draw()
+
         self.draw_widgets(widgets)
         self.fps.show_fps(self.screen, dt)
         pg.display.update()
+
 
     def draw_widgets(self, widgets):
         for widget in widgets:
@@ -390,20 +453,18 @@ class Game:
                     pg.draw.rect(self.screen, widget.color, widget.rect)
                     if widget.pressed:
                         pg.draw.rect(self.screen, widget.color_pressed, widget.rect)
-                    if self.world.day:
-                        text = str(self.world.days_num)
-                    else:
-                        text = widget.text
+                    text = widget.text
                     text_screen = FONT.render(text, True, widget.text_color)
                     text_rect = text_screen.get_rect()
                     text_rect.center = widget.rect.center
                     self.screen.blit(text_screen, text_rect)
 
     def new_world(self):
-        self.families = []
-        for family_num in range(FAMILY_NUM):
-            self.families.append(Family(params_family=next(DEFAULT_FAMILY_PARAMS)))
-        self.world = World(families=self.families, screen=self.screen)
+        families_iterator = iter(FAMILY_NAMES_AND_COLORS)
+        families = [Family(params_family=next(families_iterator))
+                    for _ in range(FAMILY_NUM)]
+        self.worlds["Game"] = World(families=families, screen=self.screen)
+        self.world = self.worlds["Game"]
 
     def run(self):
         running = True
@@ -420,8 +481,6 @@ class Game:
                     self.update(dt, pg.mouse.get_pos(), event)
                     break
             self.update(dt)
-
-
 
 
 if __name__ == '__main__':
