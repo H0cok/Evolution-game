@@ -147,10 +147,13 @@ class Drawing:
             self.draw_text(self.screen, text, color, (5, 630 + idx * 16), FONTS[16])
 
     @staticmethod
-    def draw_text(screen, text, color, pos, font=FONTS[30]):
+    def draw_text(screen, text, color, pos, font=FONTS[30], center=False):
         text_screen = font.render(text, True, color)
         text_rect = text_screen.get_rect()
-        text_rect.topleft = pos
+        if center:
+            text_rect.center = pos
+        else:
+            text_rect.topleft = pos
         screen.blit(text_screen, text_rect)
 
 
@@ -307,27 +310,30 @@ class WorldSettings:
         self.family_name = family_name
         self.family = family
         self.screen = screen
+        self.selected_guy = None
         self.draw()
         self.update_stats()
-
 
     def draw(self):
         pg.draw.rect(self.screen, (230, 230, 230, 100), Rect(0, 0, DISPLAY_RES[0], DISPLAY_RES[1]))
         gap = 40
         pg.draw.rect(self.screen, (200, 200, 200), Rect(gap, gap, DISPLAY_RES[0] - gap * 5, DISPLAY_RES[1] - gap * 2))
         Drawing.draw_text(self.screen, self.family_name, (40, 40, 40), (gap + 5, gap + 5))
+        if self.selected_guy:
+            for idx, parameter in enumerate(DEFAULT_PARAMS_CH):
+                Drawing.draw_text(self.screen, str(parameter), (0, 0, 0), (400, 170 + idx * 100))
 
     def update_stats(self):
         for widget in self.widgets:
             if widget.name == "Family Stats":
                 widget.buttons = []
                 break
-        params = {param: [] for param in DEFAULT_PARAMS_ALL}
+        params = {param: [] for param in DEFAULT_PARAMS_CH}
         for guy in self.family.guys:
-            for param in DEFAULT_PARAMS_ALL:
+            for param in DEFAULT_PARAMS_CH:
                 params[param].append(guy.params.params_all[param])
 
-        for idx, param in enumerate(DEFAULT_PARAMS_ALL):
+        for idx, param in enumerate(DEFAULT_PARAMS_CH):
             value = np.round(np.mean(params[param]), 2)
             percent = np.round(100 * value / DEFAULT_PARAMS_ALL[param] - 100, 2)
             color = [200, 200, 200]
@@ -339,7 +345,7 @@ class WorldSettings:
                 color = [205, 0, 0]
             text = param + "  " + str(value) + "  " + str(percent) + "% "
             widget.buttons.append(Button(param, text, (1000, 150 + idx * 70, 180, 70),
-                                         color, color, (0, 0, 0), True, True, font = 14))
+                                         color, color, (0, 0, 0), True, True, font=14))
 
             # Drawing.draw_text(self.screen, text, color, (5, 630 + idx * 16), FONT)
 
@@ -434,13 +440,38 @@ class Game:
                 elif type(widget) == SliderButton:
                     if widget.scroll(pos, event):
                         return None
+                    elif event.type == pg.MOUSEBUTTONDOWN and widget.rect.collidepoint(pos):
+                        widget.pressed = not widget.pressed
+                        if widget.name == "Slider":
+                            for wid in widgets:
+                                if wid.name == "Edit Family":
+                                    wid.active = not wid.active
+                            if not widget.buttons:
+                                for guy in self.world.family.guys:
+                                    widget.add_button(Button(guy.name, guy.name, (1150, 500, 180, 70),
+                                                             (200, 200, 200), (170, 170, 170), (255, 255, 255), False,
+                                                             False))
+                    if widget.name == "Slider" and event.type == pg.MOUSEBUTTONDOWN:
+                        for button in widget.buttons:
+                            if button.rect.collidepoint(pos):
+                                for guy in self.world.family.guys:
+                                    if guy.name == button.name:
+                                        self.world.selected_guy = guy
+                                        for wid in widgets:
+                                            if wid.name in DEFAULT_PARAMS_CH:
+                                                wid.active = True
+                                        break
+
+                elif type(widget) == TextInput and widget.active:
                     if event.type == pg.MOUSEBUTTONDOWN and widget.rect.collidepoint(pos):
                         widget.pressed = not widget.pressed
-                        if widget.name == "Slider" and not widget.buttons:
-                            for guy in self.world.family.guys:
-                                widget.add_button(Button(guy.name, guy.name, (1150, 500, 180, 70),
-                                                         (200, 200, 200), (170, 170, 170), (255, 255, 255), False,
-                                                         False))
+                    if event.type == pg.KEYDOWN and widget.pressed:
+                        text = widget.change_text(event, False)
+                        if text:
+                            for parameter in DEFAULT_PARAMS_CH:
+                                self.world.selected_guy.params.params_all[parameter] = float(text)
+
+                        break
 
                 # elif event.type == pg.MOUSEBUTTONUP and widget.rect.collidepoint(pos):
                 #     widget.pressed = False
@@ -502,14 +533,11 @@ class Game:
                                 self.screen.blit(text_screen, text_rect)
             if isinstance(widget, TextInput):
                 if widget.active:
-                    pg.draw.rect(self.screen, widget.color, widget.rect)
                     if widget.pressed:
                         pg.draw.rect(self.screen, widget.color_pressed, widget.rect)
-                    text = widget.text
-                    text_screen = font.render(text, True, widget.text_color)
-                    text_rect = text_screen.get_rect()
-                    text_rect.center = widget.rect.center
-                    self.screen.blit(text_screen, text_rect)
+                    else:
+                        pg.draw.rect(self.screen, widget.color, widget.rect)
+                    Drawing.draw_text(self.screen, widget.text, widget.text_color, widget.rect.center, center=True)
 
     def new_world(self):
         np.random.shuffle(FAMILY_NAMES_AND_COLORS)

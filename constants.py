@@ -11,8 +11,8 @@ DISPLAY_RES = (1420, 720)
 DEFAULT_PARAMS_ALL = {"mutation_rate": 0.95,
                       "mutation_importance": 2,
                       "size": 20,
-                      "speed": 20.5,
-                      "reach": 30,
+                      "speed": 8,
+                      "reach": 40,
                       "satiety": 0}
 
 UPDATE_AI_SPEED = 10
@@ -42,12 +42,13 @@ FAMILY_NAMES_AND_COLORS = [['green foxes', (23, 152, 161)], ['green wolfs', (110
 
 
 
-POPULATION = 1
+POPULATION = 2
 FIELD_POSITION = (110, 120, 900, 500)
 FAMILY_NUM = 10
 
-DEFAULT_WORLD_VARS = {"food_amount": 20,
+DEFAULT_WORLD_VARS = {"food_amount": 35,
                       "predator_size": 1.1}
+
 
 
 
@@ -79,7 +80,14 @@ WIDGETS_OBJECTS = {"Game":
                         Button("Edit Family", "Edit Family", (100, 280, 180, 70),
                                (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
 
-
+                        # TextInput("speed", "", (550, 150 + 100 * 0, 50, 70),
+                        #            (210, 210, 210), (240, 240, 240), (0, 0, 0), False, False),
+                        #
+                        # TextInput("reach", "", (550, 150 + 100 * 1, 50, 70),
+                        #            (210, 210, 210), (240, 240, 240), (0, 0, 0), False, False),
+                        #
+                        # TextInput("size", "", (550, 150 + 100 * 2, 50, 70),
+                        #            (210, 210, 210), (240, 240, 240), (0, 0, 0), False, False)
 
 
                        ]
@@ -87,6 +95,12 @@ WIDGETS_OBJECTS = {"Game":
                    }
 
 
+WIDGETS_OBJECTS["World_settings"].extend([TextInput(name, "", (550, 150 + 100 * i, 50, 70),
+                              (210, 210, 210), (240, 240, 240), (0, 0, 0), False, False)
+                                          for i, name in enumerate(DEFAULT_PARAMS_CH)])
+
+
+print(WIDGETS_OBJECTS["World_settings"])
 class Field:
     def __init__(self):
         self.pos = FIELD_POSITION
