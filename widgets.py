@@ -1,9 +1,8 @@
 import pygame as pg
-
-
+pg.init()
 
 class Button:
-    def __init__(self, name, text, coords, color, color_pressed, text_color, pressed, active):
+    def __init__(self, name, text, coords, color, color_pressed, text_color, pressed, active, font=30):
         self.name = name
         self.text = text
         self.pos = coords
@@ -13,11 +12,12 @@ class Button:
         self.pressed = pressed
         self.active = active
         self.rect = pg.Rect(self.pos)
-
+        self.font = font
 
 
 class SliderButton(Button):
-    def __init__(self, name, text, coords, color, color_pressed, text_color, pressed, active, buttons, field_coords, field_color):
+    def __init__(self, name, text, coords, color, color_pressed, text_color, pressed, active, buttons, field_coords,
+                 field_color):
         super().__init__(name, text, coords, color, color_pressed, text_color, pressed, active)
         self.buttons = buttons
         self.field_coords = field_coords
@@ -50,7 +50,7 @@ class SliderButton(Button):
 
 
 class TextInput:
-    def __init__(self, name, text, coords, color, color_pressed, text_color, pressed, active):
+    def __init__(self, name, text, coords, color, color_pressed, text_color, pressed, active, font=30):
         self.name = name
         self.text = text
         self.pos = coords
@@ -60,6 +60,7 @@ class TextInput:
         self.pressed = pressed
         self.active = active
         self.rect = pg.Rect(self.pos)
+        self.font = font
 
     def change_text(self, event, numeric=False):
         if event.key == pg.K_BACKSPACE:
@@ -70,19 +71,3 @@ class TextInput:
             return self.text
         else:
             self.text += event.unicode
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

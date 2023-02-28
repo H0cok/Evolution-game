@@ -49,8 +49,9 @@ FAMILY_NUM = 10
 DEFAULT_WORLD_VARS = {"food_amount": 20,
                       "predator_size": 1.1}
 
-FONT = pg.font.SysFont("calibri", 30)
-FONT_SMALL = pg.font.SysFont("calibri", 16)
+
+
+FONTS = {num: pg.font.SysFont("calibri", num) for num in [14, 16, 30]}
 WIDGETS_OBJECTS = {"Game":
                        [Button("New World", "New World", (1150, 600, 180, 70),
                                (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
@@ -64,11 +65,22 @@ WIDGETS_OBJECTS = {"Game":
                         TextInput("Day Input", "", (1350, 500, 50, 70),
                                   (200, 200, 200), (240, 240, 240), (0, 0, 0), False, True)],
                    "World_settings":
-                       [SliderButton("Slider", "Guys", (100, 150, 180, 70),
+                       [SliderButton("Slider", "Edit Guys", (100, 150, 180, 70),
                                      (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True,
                                      [], (100, 225, 180, 370), (150, 150, 150)),
+
+                        SliderButton("Family Stats", "Family Stats", (1000, 150, 180, 70),
+                                     (150, 150, 150), (170, 170, 170), (255, 255, 255), True, True,
+                                     [], (1000, 225, 180, 370), (200, 200, 200)),
+
+
                         Button("Exit", "X", (1200, 50, 50, 50),
-                               (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True)
+                               (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
+                        Button("Edit Family", "Edit Family", (100, 280, 180, 70),
+                               (150, 150, 150), (170, 170, 170), (255, 255, 255), False, True),
+
+
+
 
                        ]
 
@@ -86,15 +98,15 @@ class Field:
     def get_pos_border(self):
         random_pos = random.random() * (self.pos[2] * 2 + self.pos[3] * 2) + self.x
         if random_pos < self.x + self.x_diff:
-            return (random_pos, self.y)
+            return random_pos, self.y
         random_pos -= self.x + self.x_diff
         if random_pos < self.y_diff:
-            return (self.x + self.x_diff, random_pos + self.y)
+            return self.x + self.x_diff, random_pos + self.y
         random_pos -= self.y_diff
         if random_pos < self.x_diff:
-            return (random_pos + self.x, self.y + self.y_diff)
+            return random_pos + self.x, self.y + self.y_diff
         random_pos -= self.x_diff
-        return (self.x, random_pos + self.y)
+        return self.x, random_pos + self.y
 
 
 FIELD = Field()
